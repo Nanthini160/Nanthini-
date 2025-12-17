@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESP + MQTT Dashboard</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</head>
+<body>
+    <h2>ESP Data Real-Time</h2>
+    <h3 id="espMsg">Waiting for ESP data...</h3>
+
+    <hr>
+
+    <h2>MQTT Send & Subscribe</h2>
+
+    <h3>Send Message</h3>
+    Topic: <input type="text" id="topic" value="test/topic"><br><br>
+    Message: <input type="text" id="message" value="Hello MQTT"><br><br>
+    <button onclick="sendMessage()">Send</button>
+
+    <hr>
+
+    <h3>Subscribe</h3>
+    Topic: <input type="text" id="subTopic" value="test/topic">
+    <button onclick="subscribeTopic()">Subscribe</button>
+
+    <h3>Messages:</h3>
+    <ul id="messages"></ul>
+
+    <script>
+        // Real-time ESP data from Flask
+        async function fetchESP() {
+            try {
+                const res = await fetch("/latest");
+                const data = await res.json();
+                document.getElementById("espMsg").textContent = data.message;
+            } catch (err) {
+                console.error(err);
+            }
+        }
+        setInterval(fetchESP, 1000);
+
+        // MQTT WebSocket client
+        const client = mqtt.connect('wss://test.mosquitto.org:8081');
+
+        client.on('connect', () => console.log('Connected to MQTT broker!'));
+        client.on('error', (err) => console.error('Connection error:', err));
+
+        function sendMessage() {
+            const topic = document.getElementById('topic').value;
+            const message = document.getElementById('message').value;
+
+            client.publish(topic, message);
+
+            const li = document.createElement('li');
+            li.textContent = `Sent -> Topic: ${topic} | Message: ${message}`;
+            document.getElementById('messages').appendChild(li);
+        }
+
+        function subscribeTopic() {
+            const subTopic = document.getElementById('subTopic').value;
+            client.subscribe(subTopic, err => {
+                if (!err) alert(`Subscribed to topic: ${subTopic}`);
+            });
+        }
+
+        client.on('message', (topic, message) => {
+            const li = document.createElement('li');
+            li.textContent = `Received -> Topic: ${topic} | Message: ${message.toString()}`;
+            document.getElementById('messages').appendChild(li);
+        });
+    </script>
+</body>
+</html>
